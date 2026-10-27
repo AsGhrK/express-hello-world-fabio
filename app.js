@@ -2,52 +2,88 @@ const express = require("express");
 const app = express();
 const port = process.env.PORT || 3001;
 
-app.use(express.json())
-app.use(express.urlencoded({extended: true}));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-app.get("/", (req, res) => res.type('html').send(html));
+app.get("/", (req, res) => res.type("html").send(html));
 
-app.get('/req', (req, res) => {
-    console.log("Just got a request!")
-    res.send('Yo!')
-})
-
-
-app.get('/meunome', (req, res) => {
-  res.send('Meu nome é Davi Casari da Silva');
+app.get("/req", (req, res) => {
+  console.log("Just got a request!");
+  res.send("Yo!");
 });
 
-app.get('/tico', (req, res) => {
-  res.send('teco');
+// Desafio 1
+app.get("/meunome", (req, res) => {
+  res.send("Meu nome é Davi Casari da Silva");
 });
 
-app.get('/pokemons', (req, res) => {
+// Desafio 2
+app.get("/tico", (req, res) => {
+  res.send("teco");
+});
+
+// Desafio 3 — ordem de captura (Butterfree é evolução do Caterpie, não captura)
+app.get("/pokemons", (req, res) => {
   const pokemons = [
-      "Pikachu", 
-      "Caterpie", 
-      "Pidgeotto", 
-      "Bulbasaur", 
-      "Charmander", 
-      "Squirtle", 
-      "Butterfree", 
-      "Krabby", 
-      "Primeape", 
-      "Muk"
+    "Pikachu",
+    "Caterpie",
+    "Pidgeotto",
+    "Bulbasaur",
+    "Charmander",
+    "Squirtle",
+    "Krabby",
+    "Primeape",
+    "Muk",
+    "Tauros",
   ];
   res.json(pokemons);
 });
 
-app.post('/series', (req, res) => {
-  const series = [
-      "Breaking Bad",
-      "Stranger Things",
-      "The Witcher"
-  ];
+// Desafio 4
+app.post("/series", (req, res) => {
+  const series = ["Breaking Bad", "Stranger Things", "The Witcher"];
   res.json(series);
 });
 
-app.listen(port, () => console.log(`Example app listening on port ${port}!`));
+// Desafio 5 — bug simulado: acessar propriedade de algo que não existe
+app.get("/bug", (req, res) => {
+  const usuario = undefined; // imagine um findById que não achou nada
+  res.send(`Olá, ${usuario.nome}`); // TypeError -> Express responde 500
+});
 
+// Desafio 6 — consome a PokéAPI (pública, gratuita, sem chave)
+app.get("/pokeapi/:nome", async (req, res) => {
+  const nome = req.params.nome.toLowerCase();
+  try {
+    const resposta = await fetch(`https://pokeapi.co/api/v2/pokemon/${nome}`, {
+      signal: AbortSignal.timeout(5000), // não deixa a requisição pendurada
+    });
+
+    if (resposta.status === 404) {
+      return res.status(404).json({ erro: `Pokémon "${nome}" não encontrado` });
+    }
+    if (!resposta.ok) {
+      return res.status(502).json({ erro: "Falha ao consultar a PokéAPI" });
+    }
+
+    const dados = await resposta.json();
+
+    // Devolve só o que interessa, não o JSON gigante da API externa
+    res.json({
+      id: dados.id,
+      nome: dados.name,
+      tipos: dados.types.map((t) => t.type.name),
+      altura_m: dados.height / 10,
+      peso_kg: dados.weight / 10,
+      imagem: dados.sprites.front_default,
+    });
+  } catch (erro) {
+    console.error(erro);
+    res.status(504).json({ erro: "PokéAPI indisponível ou lenta demais" });
+  }
+});
+
+app.listen(port, () => console.log(`Example app listening on port ${port}!`));
 
 const html = `
 <!DOCTYPE html>
@@ -94,8 +130,8 @@ const html = `
   </head>
   <body>
     <section>
-      Hello Express API 
+      Hello Express API
     </section>
   </body>
 </html>
-`
+`;
